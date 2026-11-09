@@ -1,6 +1,14 @@
 /* Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
    SPDX-License-Identifier: MIT-0 */
 
+/*
+  1. Create an AWS Transit Gateway for the organization and share it using AWS RAM.
+  2. Create TGW route tables.
+  3. Create tgw attachments for the VPCs you wish to connect (covers all subnets within the VPC).
+  4. If default_route_table_association is disabled, create route tables and configure default and blackhole routes as needed.
+  5. If default_route_table_propagation is disabled, configure TGW route propagation for the VPC attachments as needed.
+*/
+
 resource "aws_ec2_transit_gateway" "org_tgw" {
   description                     = "Org TGW with auto accept shared for prod, dev and shared environments"
   auto_accept_shared_attachments  = "enable"

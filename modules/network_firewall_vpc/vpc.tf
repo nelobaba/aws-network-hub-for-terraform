@@ -112,7 +112,8 @@ resource "aws_ec2_transit_gateway_vpc_attachment" "vpc_inspection" {
 }
 
 # TGW association
-
+// when attaching the VPC to the transit gateway, the route table associated and propagated automatically. This ensures that the VPC routes are available in the TGW route table and vice versa.
+// unless explicitly disabled, the TGW will automatically associate and propagate the VPC routes.
 resource "aws_ec2_transit_gateway_route_table_association" "shared" {
   transit_gateway_attachment_id  = aws_ec2_transit_gateway_vpc_attachment.vpc_inspection.id
   transit_gateway_route_table_id = var.tgw_route_tables["shared"]
@@ -123,6 +124,8 @@ resource "aws_ec2_transit_gateway_route_table_association" "shared" {
   ]
 }
 
+// when attaching the VPC to the transit gateway, the route table associated and propagated automatically. This ensures that the VPC routes are available in the TGW route table and vice versa.
+// unless explicitly disabled, the TGW will automatically associate and propagate the VPC routes.
 resource "aws_ec2_transit_gateway_route_table_propagation" "org" {
   for_each                       = var.tgw_route_tables
   transit_gateway_attachment_id  = aws_ec2_transit_gateway_vpc_attachment.vpc_inspection.id

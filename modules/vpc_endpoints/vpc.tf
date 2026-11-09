@@ -1,6 +1,11 @@
 /* Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
    SPDX-License-Identifier: MIT-0 */
 
+   /*
+      This module creates a VPC for endpoints, including subnets, route tables, and TGW attachments.
+      Ideally when you attach a vpc to a transit gateway, the vpc route gets automatically propagated to the TGW route table. and vice versa.
+   */
+
 resource "aws_vpc" "endpoint_vpc" {
   ipv4_ipam_pool_id                = var.org_ipam_pool
   ipv4_netmask_length              = 22
@@ -97,6 +102,8 @@ resource "aws_route_table_association" "endpoint_subnet" {
   route_table_id = aws_route_table.endpoint_vpc.id
 }
 
+// when attaching the VPC to the transit gateway, the route table associated and propagated automatically. This ensures that the VPC routes are available in the TGW route table and vice versa.
+// unless explicitly disabled, the TGW will automatically associate and propagate the VPC routes.
 resource "aws_ec2_transit_gateway_vpc_attachment" "vpc_endpoint" {
   subnet_ids                                      = [for s in aws_subnet.attachment_subnet : s.id]
   transit_gateway_id                              = var.tgw
