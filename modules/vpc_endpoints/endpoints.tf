@@ -1,6 +1,12 @@
 /* Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
    SPDX-License-Identifier: MIT-0 */
 
+# An interface endpoint is an ENI with a private IP address from the IP address range of your subnet. 
+# The ENI serves as an entry point for traffic destined to a supported AWS service or a VPC endpoint service.
+# Since the Interface Endpoints uses ENI, you can associate a security group to it.
+# Since Interface Endpoints creates an Elastic Network Interface inside the VPC private subnet, the on-premise systems can 
+# connect to it via VPN and Direct Connect.
+
 resource "aws_security_group" "allow_vpc_endpoint" {
   # Creates security group for use with VPC endpoints.
   name        = "MGMT-VPC-Endpoints-Traffic-SG"
