@@ -46,6 +46,15 @@ resource "aws_vpc_endpoint" "interface" {
   ]
 }
 
+/* 
+  Note: The AWS service endpoint created using the interface VPC endpoint does not automatically resolve from the peered VPCs.
+  You may need to configure additional DNS settings or Route 53 private hosted zones to enable resolution from peered VPCs.
+  1. Disable Private DNS from VPC Endpoint. 
+  2. Create a Private Hosted Zone with Full Service Endpoint URL. 
+  3. Create Alias Record to the Regional VPC Endpoint. 
+  4. Ensure PHZ is associated with appropriate VPC
+*/
+
 resource "aws_route53_zone" "interface_phz" {
   # Private hosted zone created for each Interface endpoint. zone name taken as an input to the module.
   for_each = var.interface_endpoints
