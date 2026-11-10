@@ -249,6 +249,8 @@ resource "aws_route_table_association" "internet_subnet" {
   route_table_id = aws_route_table.internet[each.key].id
 }
 
+// This is where you define routes for traffic to go through the Network Firewall endpoints in each availability zone.
+// For traffic destined to the specified CIDR, route it through the Network Firewall endpoint in the corresponding availability zone.
 resource "aws_route" "ingress_route" {
   for_each               = local.internet_subnet
   route_table_id         = local.internet_rt_lookup[each.key]
@@ -256,16 +258,18 @@ resource "aws_route" "ingress_route" {
   vpc_endpoint_id        = local.eni_lookup[each.key]
 }
 
+// This route directs all outbound IPv4 traffic from the internet route table to the internet gateway.
 resource "aws_route" "egress_route" {
   for_each               = aws_route_table.internet
   route_table_id         = each.value.id
-  destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_internet_gateway.igw.id
+  destination_cidr_block = "0.0.0.0/0" // destination for all IPv4 traffic
+  gateway_id             = aws_internet_gateway.igw.id // target for all IPv4 traffic
   depends_on = [
     aws_ec2_transit_gateway_vpc_attachment.vpc_inspection
   ]
 }
 
+// This route directs all outbound IPv6 traffic from the internet route table to the egress-only internet gateway.
 resource "aws_route" "egress_route_ipv6" {
   for_each                    = aws_route_table.internet
   route_table_id              = each.value.id
