@@ -1,6 +1,39 @@
 /* Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
    SPDX-License-Identifier: MIT-0 */
 
+/*
+  Amazon Route 53 Resolver responds to DNS queries from AWS resources for public records, Amazon VPC-specific DNS names, 
+  and Amazon Route 53 private hosted zones, and is available by default in all VPCs.
+  It allows you to create inbound and outbound resolver endpoints to manage DNS traffic between your VPCs and on-premises networks. 
+
+  An Amazon VPC connects to a Route 53 Resolver at a VPC+2 IP address.
+  A Route 53 Resolver automatically answers DNS queries for: 
+  1. Local VPC domain names for EC2 instances (for example, ec2-192-0-2-44.compute-1.amazonaws.com). 
+  2. Records in private hosted zones (for example, acme.example.com). 
+  3. For public domain names, Route 53 Resolver performs recursive lookups against public name servers on the internet.
+
+  Private hosted zones contain records that specify how you want to route traffic in an Amazon VPC.
+  Route53 does not respond to queries which are not originating from the VPC. If EC2 from VPC-2 sends query for 01.demo.internal to VPC-1 + 2 Address, it will not be resolvable.
+
+  AWS has released Route53 Resolver Endpoints that can allow resolution of private hosted zone domains from outside of the VPC.
+  Inbound Resolver endpoints allow DNS queries to your VPC from your on-premises network or another VPC. 
+  Outbound Resolver endpoints allow DNS queries from your VPC to your on-premises network or another VPC.
+
+  Inbound Endpoint Workflow - 1 
+  1. A client in the on-premises data center needs to resolve a DNS query to an AWS resource for the domain dev.example.com. It sends the query to the on-premises DNS resolver. 
+  2. The on-premises DNS resolver has a forwarding rule that points queries to dev.example.com to an inbound endpoint. 
+  3. The query arrives at the inbound endpoint through a private connection, such as AWS Direct Connect or AWS Site-to-Site VPN, depicted as a virtual gateway.
+  4. The inbound endpoint sends the query to Route 53 Resolver at the VPC +2. 5. Route 53 Resolver resolves the DNS query for dev.example.com and returns the 
+    answer to the client via the same path in reverse.
+
+  Outbound Endpoint Workflow - 1 
+  1. An Amazon EC2 instance needs to resolve a DNS query to the domain internal.example.com. The authoritative DNS server is in the on-premises data center. This DNS query is sent to the VPC+2 in the VPC that connects to Route 53 Resolver. 
+  2. A Route 53 Resolver forwarding rule is configured to forward queries to internal.example.com in the on-premises data center. 
+  3. The query is forwarded to an outbound endpoint.
+  4. The outbound endpoint forwards the query to the on-premises DNS resolver through a private connection between AWS and the data center. The connection can be either AWS Direct Connect or AWS Site-to-Site VPN, depicted as a virtual private gateway. 
+  5. The on-premises DNS resolver resolves the DNS query for internal.example.com and returns the answer to the Amazon EC2 instance via the same path in reverse.
+*/
+
 resource "aws_route53_zone" "root_private" {
   name = var.root_domain
 
