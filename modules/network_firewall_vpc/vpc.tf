@@ -1,6 +1,7 @@
 /* Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
    SPDX-License-Identifier: MIT-0 */
 
+/* Maybe  Use-Case: All traffic that's routed between transit gateway attachments should first be inspected by the appliance in the shared services VPC. */
 resource "aws_vpc" "inspection_vpc" {
   ipv4_ipam_pool_id                = var.org_ipam_pool
   ipv4_netmask_length              = 22
@@ -314,3 +315,27 @@ resource "aws_egress_only_internet_gateway" "eigw" {
     Name = "inspection_eigw"
   }
 }
+
+/*
+Association decides which route table an attachment's outbound traffic is looked up in. When packets arrive at the TGW from that VPC, the TGW uses the associated route table to decide where to send them.
+- Each attachment can be associated with exactly one route table.
+- Think of it as "where can I go?"
+
+Propagation decides which route tables learn a route to the attachment. The attachment's CIDR is automatically inserted into each route table it propagates to, so traffic looked up in those tables can reach it.
+- An attachment can propagate to many route tables.
+- Think of it as "who can reach me?"
+
+Both are needed for two VPCs to talk. For traffic from A to B, A's associated route table must contain B's CIDR, which means B propagates into it. For the reply, B's associated route table must contain A's CIDR.
+
+How this repo uses them
+
+┌───────────────────────────────────┬─────────────────┬───────────────────┐
+│            Attachment             │ Associated with │   Propagates to   │
+├───────────────────────────────────┼─────────────────┼───────────────────┤
+│ Endpoint, DNS and Inspection VPCs │ shared          │ prod, dev, shared │
+├───────────────────────────────────┼─────────────────┼───────────────────┤
+│ Non-prod spoke                    │ dev             │ dev, shared       │
+├───────────────────────────────────┼─────────────────┼───────────────────┤
+│ Prod spoke                        │ prod            │ prod, shared      │
+└───────────────────────────────────┴─────────────────┴───────────────────┘
+*/

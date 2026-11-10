@@ -7,6 +7,10 @@
   3. Create tgw attachments for the VPCs you wish to connect (covers all subnets within the VPC).
   4. If default_route_table_association is disabled, create route tables and configure default and blackhole routes as needed.
   5. If default_route_table_propagation is disabled, configure TGW route propagation for the VPC attachments as needed.
+
+  Note: if you don't want automatic association and propagation of VPC routes in the TGW route tables, 
+  you can disable them and manage the associations and propagations manually, by creating and associating TGW 
+  route tables and configuring route propagation as needed manually as done here.
 */
 
 resource "aws_ec2_transit_gateway" "org_tgw" {
@@ -19,6 +23,7 @@ resource "aws_ec2_transit_gateway" "org_tgw" {
   }
 }
 
+/* Transit Gateway sharing allows VPCs across multiple accounts to use Transit gateway for inter-connectivity. */
 resource "aws_ram_resource_share" "main" {
   name                      = "tgw-org-share"
   allow_external_principals = false

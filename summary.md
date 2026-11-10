@@ -106,6 +106,17 @@ There is one TGW route table per entry in `tgw_route_tables` (`prod`, `dev`, `sh
 2. **`0.0.0.0/0` and `::/0` → inspection VPC attachment**. All internet-bound traffic goes through the firewall.
 3. **Propagated routes** (added by the attaching modules). These are more specific than the blackhole, so they open selected paths.
 
+**Association vs propagation:** the two settings control opposite directions of routing.
+
+| | Association | Propagation |
+|---|---|---|
+| Question it answers | "Where can I go?" | "Who can reach me?" |
+| What it does | Picks the route table used to look up traffic *leaving* the attachment | Adds the attachment's CIDR as a route *to* it in the target route table(s) |
+| How many per attachment | Exactly **one** | **Many** |
+| Terraform resource | `aws_ec2_transit_gateway_route_table_association` | `aws_ec2_transit_gateway_route_table_propagation` (usually with `for_each`) |
+
+Both are needed for two VPCs to talk. For A → B, A's associated table must contain B's CIDR, which means B propagates into it. The return path needs the reverse. Propagated routes are more specific than the `/10` blackhole, so they win. The model is "deny everything inside the org, then open paths with propagation."
+
 Segmentation result:
 
 | Attachment | Associated with RT | Propagates into | Effect |
@@ -146,10 +157,23 @@ IPv4 flow: spoke → TGW → attachment subnet → **Network Firewall** → NAT 
 **Architecture:** A shared `endpoint_vpc` (`/22`) hosts one **Interface VPC endpoint** for each service in `vpc_endpoints` (`ec2`, `rds`, `sqs`, `sns`, `ssm`, `logs`, `ssmmessages`, `ec2messages`, `autoscaling`, `ecs`, `athena`). Spokes don't need to pay for their own copies.
 
 - **Subnets:** 3 × `/27` TGW attachment subnets and 3 × `/26` endpoint subnets, all using one route table with `0.0.0.0/0` and `::/0` → TGW.
+- **Endpoints per AZ:** `aws_vpc_endpoint.interface` creates **one endpoint per service** (`for_each` over `interface_endpoints`). Each endpoint lists all 3 endpoint subnets, so AWS puts **one ENI in each AZ**. With the default 11 services, that's 11 endpoints × 3 AZs = **33 ENIs**. The endpoint's DNS name resolves to all of its AZ IPs, so clients in any AZ can reach it and it keeps working if one AZ fails.
 - **Security group:** `MGMT-VPC-Endpoints-Traffic-SG` allows TCP 443 from the org CIDR.
 - **DNS:** Endpoints are created with `private_dns_enabled = false`. Instead, the module creates a **Private Hosted Zone per service** named after the public service hostname (e.g. `ssm.eu-west-2.amazonaws.com`), with an alias A record pointing at the endpoint. Spoke VPCs are associated with these PHZs later, from the spoke side. That's why the PHZ ignores changes to `vpc`. As a result, spokes resolve AWS API hostnames to the central endpoint IPs and reach them across the TGW.
 - **TGW:** Associated with `shared` and propagated to all route tables.
 - **Logging:** VPC Flow Logs → `endpoint_vpc` log group.
+
+**How centralization works:** the endpoints exist only in the hub. Spokes reach them through three pieces working together:
+1. **DNS:** each spoke associates its VPC with the hub's per-service private hosted zones (`endpoint_phz` in `example-spoke-vpc/modules/dns/dns.tf`). Inside the spoke, `ssm.<region>.amazonaws.com` then resolves to the central endpoint's private IPs.
+2. **Network:** the spoke's default route goes to the TGW. The endpoint VPC propagates into every TGW route table, so the spoke's TGW table has a route to it.
+3. **Security group:** port 443 is allowed from the whole org `/10` CIDR.
+
+The cost benefit is paying for the ENIs once in the hub instead of in every spoke.
+
+**Exceptions and trade-offs:**
+- **Local endpoints in spokes:** spokes can still create their own endpoints. The default `vpc_endpoints = ["s3"]` puts an S3 interface endpoint *in the spoke itself*, with a private hosted zone that covers only that VPC. The default design is mostly centralized, with S3 kept local.
+- **Cross-AZ traffic:** DNS returns all three ENI IPs, so a client may connect to an ENI in a different AZ. That traffic can cross AZs through the TGW and the endpoint VPC, adding a little latency and data-transfer cost.
+- **Data-processing charges:** central endpoint traffic pays TGW data-processing on top of endpoint data-processing. For heavily used services, a local endpoint can work out cheaper above a certain spoke traffic volume.
 
 - **Inputs:** `environment`, `az_names`, `cidr`, `interface_endpoints`, `org_ipam_pool`, `tgw`, `tgw_route_tables`, `kms_key_id`, `iam_role_arn`
 - **Outputs:** none
